@@ -32,6 +32,10 @@ class Space
     #[ORM\Column(type: Types::TIME_MUTABLE)]
     private ?\DateTime $availableTo = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $type = null;
+
+
     public function getId(): ?int
     {
         return $this->id;
@@ -106,6 +110,17 @@ class Space
     {
         $this->availableTo = $availableTo;
 
+        return $this;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): static
+    {
+        $this->type = $type;
         return $this;
     }
 }

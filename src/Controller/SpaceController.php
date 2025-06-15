@@ -84,50 +84,70 @@ final class SpaceController extends AbstractController
         return $this->redirectToRoute('app_space_index', [], Response::HTTP_SEE_OTHER);
     }
 
-    // ✅ API: Endpoint documentado para frontend Angular
     #[Route('/api/spaces', name: 'get_spaces', methods: ['GET'])]
     #[OA\Get(
         path: '/api/spaces',
-        summary: 'Obtener todos los espacios disponibles',
-        tags: ['Spaces'],
+        summary: 'Listar espacios disponibles con filtros opcionales',
+        parameters: [
+            new OA\Parameter(name: 'type', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'capacity', in: 'query', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'availableFrom', in: 'query', schema: new OA\Schema(type: 'string', format: 'time')),
+            new OA\Parameter(name: 'availableTo', in: 'query', schema: new OA\Schema(type: 'string', format: 'time')),
+        ],
         responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Lista de espacios',
-                content: new OA\JsonContent(
-                    type: 'array',
-                    items: new OA\Items(
-                        properties: [
-                            new OA\Property(property: 'id', type: 'integer'),
-                            new OA\Property(property: 'name', type: 'string'),
-                            new OA\Property(property: 'description', type: 'string'),
-                            new OA\Property(property: 'capacity', type: 'integer'),
-                            new OA\Property(property: 'photoUrl', type: 'string', nullable: true),
-                            new OA\Property(property: 'availableFrom', type: 'string', example: '08:00'),
-                            new OA\Property(property: 'availableTo', type: 'string', example: '18:00')
-                        ]
-                    )
-                )
-            )
+            new OA\Response(response: 200, description: 'Lista de espacios filtrados')
         ]
     )]
-    #[Security(name: 'BearerAuth')]
-    public function getSpaces(SpaceRepository $spaceRepository): JsonResponse
+    public function getSpaces(Request $request, SpaceRepository $spaceRepository): JsonResponse
     {
-        $spaces = $spaceRepository->findAll();
+        $type = $request->query->get('type');
+        $capacity = $request->query->get('capacity');
+        $from = $request->query->get('availableFrom');
+        $to = $request->query->get('availableTo');
 
-        $data = array_map(function ($space) {
-            return [
-                'id' => $space->getId(),
-                'name' => $space->getName(),
-                'description' => $space->getDescription(),
-                'capacity' => $space->getCapacity(),
-                'photoUrl' => $space->getPhotoUrl(),
-                'availableFrom' => $space->getAvailableFrom()->format('H:i'),
-                'availableTo' => $space->getAvailableTo()->format('H:i'),
-            ];
-        }, $spaces);
+        $qb = $spaceRepository->createQueryBuilder('s');
+
+        if ($type) {
+            $qb->andWhere('s.type = :type')->setParameter('type', $type);
+        }
+
+        if ($capacity) {
+            $qb->andWhere('s.capacity >= :capacity')->setParameter('capacity', (int) $capacity);
+        }
+
+        if ($from) {
+            $qb->andWhere('s.availableFrom <= :from')->setParameter('from', new \DateTime($from));
+        }
+
+        if ($to) {
+            $qb->andWhere('s.availableTo >= :to')->setParameter('to', new \DateTime($to));
+        }
+
+        $spaces = $qb->getQuery()->getResult();
+
+        $data = array_map(fn($s) => [
+            'id' => $s->getId(),
+            'name' => $s->getName(),
+            'description' => $s->getDescription(),
+            'capacity' => $s->getCapacity(),
+            'photoUrl' => $s->getPhotoUrl(),
+            'type' => $s->getType(), // si existe
+            'availableFrom' => $s->getAvailableFrom()?->format('H:i'),
+            'availableTo' => $s->getAvailableTo()?->format('H:i'),
+        ], $spaces);
 
         return new JsonResponse($data);
+    }
+
+    #[Route('/api/space-types', name: 'get_space_types', methods: ['GET'])]
+    #[Security(name: 'BearerAuth')]  
+    public function getSpaceTypes(SpaceRepository $spaceRepository): JsonResponse
+    {
+        $entityManager = $spaceRepository->getEntityManager();
+        $conn = $entityManager->getConnection();
+
+        $results = $conn->executeQuery('SELECT DISTINCT type FROM space WHERE type IS NOT NULL')->fetchFirstColumn();
+
+        return new JsonResponse($results);
     }
 }
