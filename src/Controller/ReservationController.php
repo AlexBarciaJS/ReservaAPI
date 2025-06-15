@@ -64,6 +64,12 @@ class ReservationController extends AbstractController
             }
         }
 
+        $space = $spaceRepo->find($dto->spaceId);
+        if (!$space) {
+            return $this->json(['error' => 'Invalid space ID'], 400);
+        }
+
+
         // Create reservation
         $reservation = new Reservation();
         $reservation->setEventName($dto->eventName);

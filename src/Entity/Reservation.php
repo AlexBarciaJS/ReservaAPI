@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Entity;
 
 use App\Repository\ReservationRepository;
@@ -24,11 +23,11 @@ class Reservation
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $userRelation = null;
+    private ?User $user = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(targetEntity: Space::class)]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Space $spaceRelation = null;
+    private ?Space $space = null;
 
     public function getId(): ?int
     {
@@ -43,7 +42,6 @@ class Reservation
     public function setEventName(string $eventName): static
     {
         $this->eventName = $eventName;
-
         return $this;
     }
 
@@ -55,7 +53,6 @@ class Reservation
     public function setStartTime(\DateTime $startTime): static
     {
         $this->startTime = $startTime;
-
         return $this;
     }
 
@@ -67,31 +64,28 @@ class Reservation
     public function setEndTime(\DateTime $endTime): static
     {
         $this->endTime = $endTime;
-
         return $this;
     }
 
-    public function getUserRelation(): ?User
+    public function getUser(): ?User
     {
-        return $this->userRelation;
+        return $this->user;
     }
 
-    public function setUserRelation(?User $userRelation): static
+    public function setUser(?User $user): static
     {
-        $this->userRelation = $userRelation;
-
+        $this->user = $user;
         return $this;
     }
 
-    public function getSpaceRelation(): ?Space
+    public function getSpace(): ?Space
     {
-        return $this->spaceRelation;
+        return $this->space;
     }
 
-    public function setSpaceRelation(?Space $spaceRelation): static
+    public function setSpace(?Space $space): static
     {
-        $this->spaceRelation = $spaceRelation;
-
+        $this->space = $space;
         return $this;
     }
 }

@@ -25,6 +25,7 @@ final class SpaceController extends AbstractController
     }
 
     #[Route('/new', name: 'app_space_new', methods: ['GET', 'POST'])]
+    #[Security(name: 'BearerAuth')]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
         $space = new Space();
@@ -53,6 +54,7 @@ final class SpaceController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_space_edit', methods: ['GET', 'POST'])]
+    #[Security(name: 'BearerAuth')]    
     public function edit(Request $request, Space $space, EntityManagerInterface $entityManager): Response
     {
         $form = $this->createForm(SpaceForm::class, $space);
@@ -71,6 +73,7 @@ final class SpaceController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_space_delete', methods: ['POST'])]
+    #[Security(name: 'BearerAuth')]
     public function delete(Request $request, Space $space, EntityManagerInterface $entityManager): Response
     {
         if ($this->isCsrfTokenValid('delete'.$space->getId(), $request->getPayload()->getString('_token'))) {
