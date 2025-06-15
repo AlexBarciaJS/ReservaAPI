@@ -4,6 +4,13 @@ nelmio_api_doc:
             title: "TOTS Event Booking API"
             description: "Documentación generada automáticamente"
             version: "1.0.0"
+        components:
+            securitySchemes:
+                BearerAuth:
+                    type: http
+                    scheme: bearer
+        security:
+            - BearerAuth: []
     areas:
         default:
             path_patterns: ["^/api"]
