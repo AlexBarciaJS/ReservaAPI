@@ -58,7 +58,7 @@ class ReservationController extends AbstractController
                 $start < $existing->getEndTime() &&
                 $end > $existing->getStartTime()
             ) {
-                return $this->json(['error' => 'The space is already reserved at this time.'], 409);
+                return $this->json(['error' => 'El espacio ya está reservado en este momento.'], 409);
             }
         }
 
@@ -72,7 +72,7 @@ class ReservationController extends AbstractController
         $em->persist($reservation);
         $em->flush();
 
-        return $this->json(['message' => 'Reservation created successfully'], 201);
+        return $this->json(['message' => 'Reserva creada con éxito'], 201);
     }
 
     #[Route('/api/reservations', name: 'list_user_reservations', methods: ['GET'])]
@@ -141,4 +141,29 @@ class ReservationController extends AbstractController
 
         return new JsonResponse($data);
     }
+
+    #[Route('/api/reservations/{id}', name: 'delete_reservation', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function deleteReservation(
+        int $id,
+        ReservationRepository $reservationRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        $reservation = $reservationRepository->find($id);
+
+        if (!$reservation) {
+            return $this->json(['error' => 'Reservation not found'], 404);
+        }
+
+        // Opcional: asegura que solo el dueño puede cancelar
+        if ($reservation->getUser() !== $this->getUser()) {
+            return $this->json(['error' => 'Access denied'], 403);
+        }
+
+        $em->remove($reservation);
+        $em->flush();
+
+        return $this->json(['message' => 'Reserva eliminada con éxito']);
+    }
+
 }
