@@ -39,3 +39,4 @@ security:
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/doc, roles: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/api/doc/ui, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api/spaces, roles: ROLE_ADMIN }
