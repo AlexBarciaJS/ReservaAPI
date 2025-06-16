@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api')]
 class SpaceApiController extends AbstractController
 {
-    #[Route('/spaces', name: 'api_spaces_index', methods: ['GET'])]
+    #[Route('/spaces/list', name: 'api_spaces_index', methods: ['GET'])]
     #[OA\Get(
         path: '/api/spaces',
         summary: 'Obtener todos los espacios disponibles con filtros opcionales',
