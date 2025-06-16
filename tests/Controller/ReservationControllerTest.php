@@ -3,135 +3,122 @@
 namespace App\Tests\Controller;
 
 use App\Entity\Reservation;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use App\Entity\Space;
+use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\Response;
 
-final class ReservationControllerTest extends WebTestCase
+class ReservationControllerTest extends WebTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $manager;
-    private EntityRepository $reservationRepository;
-    private string $path = '/reservation/';
+    private $client;
+    private $em;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-        $this->manager = static::getContainer()->get('doctrine')->getManager();
-        $this->reservationRepository = $this->manager->getRepository(Reservation::class);
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+    }
 
-        foreach ($this->reservationRepository->findAll() as $object) {
-            $this->manager->remove($object);
+    public function testCreateReservation(): void
+    {
+        $this->client->loginUser($this->createTestUser());
+
+        $space = new Space();
+        $space->setName('Test Space');
+        $space->setDescription('For testing');
+        $space->setCapacity(10);
+        $space->setType('Sala');
+        $space->setAvailableFrom(new \DateTime('08:00'));
+        $space->setAvailableTo(new \DateTime('18:00'));
+        $this->em->persist($space);
+        $this->em->flush();
+
+        $payload = [
+            'eventName' => 'Reserva Test',
+            'startTime' => (new \DateTime('+1 hour'))->format('Y-m-d H:i:s'),
+            'endTime' => (new \DateTime('+2 hour'))->format('Y-m-d H:i:s'),
+            'spaceId' => $space->getId(),
+        ];
+
+
+        $this->client->request(
+            'POST',
+            '/api/reservations',
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode($payload)
+        );
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
+    }
+
+    public function testListUserReservations(): void
+    {
+        $user = $this->createTestUser();
+        $this->client->loginUser($user);
+
+        $this->client->request('GET', '/api/reservations');
+        $this->assertResponseIsSuccessful();
+        $this->assertResponseFormatSame('json');
+    }
+
+    public function testDeleteReservation(): void
+    {
+        $user = $this->createTestUser();
+        $reservation = $this->createReservation($user);
+
+        $this->client->loginUser($user);
+        $this->client->request('DELETE', '/api/reservations/' . $reservation->getId());
+
+        $this->assertResponseIsSuccessful();
+        $this->assertStringContainsString('eliminada', $this->client->getResponse()->getContent());
+    }
+
+    private function createTestUser(): User
+    {
+        $repo = $this->em->getRepository(User::class);
+        $existing = $repo->findOneBy(['email' => 'user@test.com']);
+        if ($existing) {
+            return $existing;
         }
 
-        $this->manager->flush();
+        $user = new User();
+        $user->setEmail('user@test.com');
+        $user->setPassword(password_hash('secret', PASSWORD_BCRYPT));
+        $this->em->persist($user);
+        $this->em->flush();
+        return $user;
     }
 
-    public function testIndex(): void
+    private function createSpace(): Space
     {
-        $this->client->followRedirects();
-        $crawler = $this->client->request('GET', $this->path);
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertPageTitleContains('Reservation index');
-
-        // Use the $crawler to perform additional assertions e.g.
-        // self::assertSame('Some text on the page', $crawler->filter('.p')->first());
+        $space = new Space();
+        $space->setName('Sala Test');
+        $space->setDescription('Para pruebas');
+        $space->setCapacity(10);
+        $space->setType('Sala');
+        $space->setAvailableFrom(new \DateTime('08:00'));
+        $space->setAvailableTo(new \DateTime('18:00'));
+        $this->em->persist($space);
+        $this->em->flush();
+        return $space;
     }
 
-    public function testNew(): void
+    private function createReservation(User $user): Reservation
     {
-        $this->markTestIncomplete();
-        $this->client->request('GET', sprintf('%snew', $this->path));
+        $space = $this->createSpace();
 
-        self::assertResponseStatusCodeSame(200);
+        $reservation = new Reservation();
+        $reservation->setEventName('Evento Prueba');
+        $reservation->setStartTime(new \DateTime('+1 hour'));
+        $reservation->setEndTime(new \DateTime('+2 hour'));
+        $reservation->setSpace($space);
+        $reservation->setUser($user);
 
-        $this->client->submitForm('Save', [
-            'reservation[eventName]' => 'Testing',
-            'reservation[startTime]' => 'Testing',
-            'reservation[endTime]' => 'Testing',
-            'reservation[userRelation]' => 'Testing',
-            'reservation[spaceRelation]' => 'Testing',
-        ]);
+        $this->em->persist($reservation);
+        $this->em->flush();
 
-        self::assertResponseRedirects($this->path);
-
-        self::assertSame(1, $this->reservationRepository->count([]));
-    }
-
-    public function testShow(): void
-    {
-        $this->markTestIncomplete();
-        $fixture = new Reservation();
-        $fixture->setEventName('My Title');
-        $fixture->setStartTime('My Title');
-        $fixture->setEndTime('My Title');
-        $fixture->setUserRelation('My Title');
-        $fixture->setSpaceRelation('My Title');
-
-        $this->manager->persist($fixture);
-        $this->manager->flush();
-
-        $this->client->request('GET', sprintf('%s%s', $this->path, $fixture->getId()));
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertPageTitleContains('Reservation');
-
-        // Use assertions to check that the properties are properly displayed.
-    }
-
-    public function testEdit(): void
-    {
-        $this->markTestIncomplete();
-        $fixture = new Reservation();
-        $fixture->setEventName('Value');
-        $fixture->setStartTime('Value');
-        $fixture->setEndTime('Value');
-        $fixture->setUserRelation('Value');
-        $fixture->setSpaceRelation('Value');
-
-        $this->manager->persist($fixture);
-        $this->manager->flush();
-
-        $this->client->request('GET', sprintf('%s%s/edit', $this->path, $fixture->getId()));
-
-        $this->client->submitForm('Update', [
-            'reservation[eventName]' => 'Something New',
-            'reservation[startTime]' => 'Something New',
-            'reservation[endTime]' => 'Something New',
-            'reservation[userRelation]' => 'Something New',
-            'reservation[spaceRelation]' => 'Something New',
-        ]);
-
-        self::assertResponseRedirects('/reservation/');
-
-        $fixture = $this->reservationRepository->findAll();
-
-        self::assertSame('Something New', $fixture[0]->getEventName());
-        self::assertSame('Something New', $fixture[0]->getStartTime());
-        self::assertSame('Something New', $fixture[0]->getEndTime());
-        self::assertSame('Something New', $fixture[0]->getUserRelation());
-        self::assertSame('Something New', $fixture[0]->getSpaceRelation());
-    }
-
-    public function testRemove(): void
-    {
-        $this->markTestIncomplete();
-        $fixture = new Reservation();
-        $fixture->setEventName('Value');
-        $fixture->setStartTime('Value');
-        $fixture->setEndTime('Value');
-        $fixture->setUserRelation('Value');
-        $fixture->setSpaceRelation('Value');
-
-        $this->manager->persist($fixture);
-        $this->manager->flush();
-
-        $this->client->request('GET', sprintf('%s%s', $this->path, $fixture->getId()));
-        $this->client->submitForm('Delete');
-
-        self::assertResponseRedirects('/reservation/');
-        self::assertSame(0, $this->reservationRepository->count([]));
+        return $reservation;
     }
 }
